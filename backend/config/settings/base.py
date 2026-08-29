@@ -10,6 +10,9 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=lambda v: [s.strip() for s in v.split(",")])
 
 DJANGO_APPS = [
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -103,6 +106,82 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+UNFOLD = {
+    "SITE_TITLE": "Origin",
+    "SITE_HEADER": "Origin Platform",
+    "SITE_SUBHEADER": "Internal Product Platform",
+    "SITE_URL": "/",
+    "SITE_ICON": None,
+    "SITE_SYMBOL": "deployed_code",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": False,
+    "THEME": "dark",
+    "COLORS": {
+        "primary": {
+            "50": "240 249 255",
+            "100": "224 242 254",
+            "200": "186 230 253",
+            "300": "125 211 252",
+            "400": "56 189 248",
+            "500": "14 165 233",
+            "600": "2 132 199",
+            "700": "3 105 161",
+            "800": "7 89 133",
+            "900": "12 74 110",
+            "950": "8 47 73",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": "Platform",
+                "separator": False,
+                "items": [
+                    {
+                        "title": "Users",
+                        "icon": "person",
+                        "link": "/admin/users/user/",
+                    },
+                    {
+                        "title": "Identities",
+                        "icon": "badge",
+                        "link": "/admin/identity/identity/",
+                    },
+                ],
+            },
+            {
+                "title": "Organizations",
+                "separator": False,
+                "items": [
+                    {
+                        "title": "Organizations",
+                        "icon": "corporate_fare",
+                        "link": "/admin/organizations/organization/",
+                    },
+                    {
+                        "title": "Memberships",
+                        "icon": "group",
+                        "link": "/admin/organizations/membership/",
+                    },
+                ],
+            },
+            {
+                "title": "System",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Groups",
+                        "icon": "shield_person",
+                        "link": "/admin/auth/group/",
+                    },
+                ],
+            },
+        ],
+    },
 }
 
 SPECTACULAR_SETTINGS = {

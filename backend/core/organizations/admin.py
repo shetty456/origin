@@ -1,9 +1,10 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin, TabularInline
 
 from .models import Organization, Membership
 
 
-class MembershipInline(admin.TabularInline):
+class MembershipInline(TabularInline):
     model = Membership
     extra = 0
     readonly_fields = ("created_at",)
@@ -11,7 +12,7 @@ class MembershipInline(admin.TabularInline):
 
 
 @admin.register(Organization)
-class OrganizationAdmin(admin.ModelAdmin):
+class OrganizationAdmin(ModelAdmin):
     list_display = ("name", "slug", "is_active", "created_at")
     list_filter = ("is_active",)
     search_fields = ("name", "slug")
@@ -21,7 +22,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 
 @admin.register(Membership)
-class MembershipAdmin(admin.ModelAdmin):
+class MembershipAdmin(ModelAdmin):
     list_display = ("user", "organization", "role", "created_at")
     list_filter = ("role",)
     search_fields = ("user__email", "user__name", "organization__name")
