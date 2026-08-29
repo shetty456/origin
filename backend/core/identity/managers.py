@@ -37,7 +37,7 @@ class IdentityManager(models.Manager):
                 if has_other_verified:
                     user = User.objects.create_user(email=email)
                     identity.user = user
-                    identity.save(update_fields=["user"])
+                    identity.save(update_fields=["user", "updated_at"])
 
             return identity, False
         except self.model.DoesNotExist:
@@ -71,7 +71,7 @@ class IdentityManager(models.Manager):
                 if has_other_verified:
                     user = User.objects.create_user()
                     identity.user = user
-                    identity.save(update_fields=["user"])
+                    identity.save(update_fields=["user", "updated_at"])
 
             return identity, False
         except self.model.DoesNotExist:

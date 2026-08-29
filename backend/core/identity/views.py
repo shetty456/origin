@@ -127,7 +127,7 @@ class OTPVerifyView(APIView):
 
         if not identity.verified_at:
             identity.verified_at = now
-            identity.save(update_fields=["verified_at"])
+            identity.save(update_fields=["verified_at", "updated_at"])
 
         return Response(_issue_tokens(identity.user), status=status.HTTP_200_OK)
 
@@ -195,7 +195,7 @@ class PhoneOTPVerifyView(APIView):
 
         if not identity.verified_at:
             identity.verified_at = now
-            identity.save(update_fields=["verified_at"])
+            identity.save(update_fields=["verified_at", "updated_at"])
 
         return Response(_issue_tokens(identity.user), status=status.HTTP_200_OK)
 
@@ -252,7 +252,7 @@ def _link_verify(request, provider, identifier, otp_value):
     otp_request.verified_at = now
     otp_request.save(update_fields=["verified_at"])
     identity.verified_at = now
-    identity.save(update_fields=["verified_at"])
+    identity.save(update_fields=["verified_at", "updated_at"])
 
     return Response(
         {"detail": f"{provider.capitalize()} linked successfully."},

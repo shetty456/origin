@@ -1,4 +1,4 @@
-.PHONY: up build down restart logs shell migrate makemigrations createsuperuser test hooks
+.PHONY: up build down restart logs shell migrate makemigrations createsuperuser test hooks psql
 
 up:
 	docker compose up
