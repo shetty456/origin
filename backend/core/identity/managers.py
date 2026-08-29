@@ -1,5 +1,6 @@
 from datetime import timedelta
-from django.db import models
+from django.db import models, transaction, IntegrityError
+from django.db.models import F
 from django.utils import timezone
 
 
@@ -42,16 +43,21 @@ class IdentityManager(models.Manager):
             return identity, False
         except self.model.DoesNotExist:
             try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                user = User.objects.create_user(email=email)
-
-            identity = self.create(
-                user=user,
-                provider="email",
-                identifier=email,
-            )
-            return identity, True
+                with transaction.atomic():
+                    try:
+                        user = User.objects.get(email=email)
+                    except User.DoesNotExist:
+                        user = User.objects.create_user(email=email)
+                    identity = self.create(
+                        user=user,
+                        provider="email",
+                        identifier=email,
+                    )
+                return identity, True
+            except IntegrityError:
+                # Another request created the identity in a race — re-fetch it.
+                identity = self.get(provider="email", identifier=email)
+                return identity, False
 
     def get_or_create_for_phone(self, phone):
         """
@@ -75,13 +81,18 @@ class IdentityManager(models.Manager):
 
             return identity, False
         except self.model.DoesNotExist:
-            user = User.objects.create_user()
-            identity = self.create(
-                user=user,
-                provider="phone",
-                identifier=phone,
-            )
-            return identity, True
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user()
+                    identity = self.create(
+                        user=user,
+                        provider="phone",
+                        identifier=phone,
+                    )
+                return identity, True
+            except IntegrityError:
+                identity = self.get(provider="phone", identifier=phone)
+                return identity, False
 
 
     def get_or_create_for_link(self, user, provider, identifier):

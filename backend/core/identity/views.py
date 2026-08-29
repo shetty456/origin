@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
 
+from django.db.models import F
 from .models import Identity, OTPRequest
 from .serializers import (
     OTPRequestSerializer,
@@ -50,8 +51,9 @@ def _verify_otp(identity, otp_value):
         )
 
     if not otp_request.check_otp(otp_value):
-        otp_request.attempts += 1
-        otp_request.save(update_fields=["attempts"])
+        # Atomic DB-level increment — prevents parallel requests from bypassing
+        # the attempt limit via a read-modify-write race condition.
+        OTPRequest.objects.filter(pk=otp_request.pk).update(attempts=F("attempts") + 1)
         return None, Response(
             {"detail": "Invalid OTP."},
             status=status.HTTP_400_BAD_REQUEST,
