@@ -36,3 +36,22 @@ class PhoneOTPRequestSerializer(serializers.Serializer):
 class PhoneOTPVerifySerializer(serializers.Serializer):
     phone = PhoneNumberField()
     otp = serializers.CharField(min_length=6, max_length=6)
+
+
+# Identity linking (authenticated)
+class LinkEmailRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class LinkEmailVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(min_length=6, max_length=6)
+
+
+class LinkPhoneRequestSerializer(serializers.Serializer):
+    phone = PhoneNumberField()
+
+
+class LinkPhoneVerifySerializer(serializers.Serializer):
+    phone = PhoneNumberField()
+    otp = serializers.CharField(min_length=6, max_length=6)

@@ -59,6 +59,29 @@ class IdentityManager(models.Manager):
             return identity, True
 
 
+    def get_or_create_for_link(self, user, provider, identifier):
+        """
+        Prepare an Identity for linking to an existing authenticated user.
+        Returns (identity, created).
+        Raises ValueError if the identifier is already claimed by a different user.
+        """
+        try:
+            identity = self.get(provider=provider, identifier=identifier)
+            if identity.user_id != user.pk:
+                raise ValueError(
+                    f"This {provider} identifier is already linked to another account."
+                )
+            return identity, False  # Already linked to this user
+        except self.model.DoesNotExist:
+            identity = self.create(
+                user=user,
+                provider=provider,
+                identifier=identifier,
+                # verified_at intentionally left null until OTP is confirmed
+            )
+            return identity, True
+
+
 class OTPRequestManager(models.Manager):
     def get_latest_usable(self, identity):
         """Return the latest unverified OTP request for this identity, or None."""
