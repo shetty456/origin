@@ -1,0 +1,32 @@
+repos:
+  # --- Standard hygiene ---
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: debug-statements       # catches leftover pdb / breakpoint()
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+  # --- Origin platform rules ---
+  - repo: local
+    hooks:
+      - id: no-direct-user-import
+        name: "Use get_user_model() — not a direct User import"
+        language: pygrep
+        # Matches: from core.users.models import User (or anything from that module)
+        entry: 'from core\.users\.models import'
+        types: [python]
+        # Allowed in: the users app itself and migrations
+        exclude: '^backend/core/users/|^backend/.*/migrations/'
+
+      - id: no-raw-auth-user-model-string
+        name: "Reference AUTH_USER_MODEL via settings — not a hardcoded string"
+        language: pygrep
+        # Catches: to="users.User" or to='users.User' hardcoded outside settings
+        entry: '(to\s*=\s*["\']users\.User["\'])'
+        types: [python]
+        exclude: '^backend/core/users/|^backend/.*/migrations/|^backend/config/settings/'

@@ -1,4 +1,4 @@
-.PHONY: up build down restart logs shell migrate makemigrations createsuperuser test
+.PHONY: up build down restart logs shell migrate makemigrations createsuperuser test hooks
 
 up:
 	docker compose up
@@ -32,3 +32,7 @@ test:
 
 psql:
 	docker compose exec db psql -U ${DB_USER:-origin} -d ${DB_NAME:-origin}
+
+hooks:
+	pre-commit install
+	@echo "Git hooks installed. Runs automatically on every commit."
