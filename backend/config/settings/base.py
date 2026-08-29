@@ -110,27 +110,29 @@ REST_FRAMEWORK = {
 
 UNFOLD = {
     "SITE_TITLE": "Origin",
-    "SITE_HEADER": "Origin Platform",
+    "SITE_HEADER": "Origin",
     "SITE_SUBHEADER": "Internal Product Platform",
     "SITE_URL": "/",
     "SITE_ICON": None,
     "SITE_SYMBOL": "deployed_code",
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": False,
+    "SHOW_BACK_BUTTON": True,
     "THEME": "dark",
+    # Supabase emerald green palette
     "COLORS": {
         "primary": {
-            "50": "240 249 255",
-            "100": "224 242 254",
-            "200": "186 230 253",
-            "300": "125 211 252",
-            "400": "56 189 248",
-            "500": "14 165 233",
-            "600": "2 132 199",
-            "700": "3 105 161",
-            "800": "7 89 133",
-            "900": "12 74 110",
-            "950": "8 47 73",
+            "50": "236 253 245",
+            "100": "209 250 229",
+            "200": "167 243 208",
+            "300": "110 231 183",
+            "400": "52 211 153",
+            "500": "16 185 129",
+            "600": "5 150 105",
+            "700": "4 120 87",
+            "800": "6 95 70",
+            "900": "6 78 59",
+            "950": "2 44 34",
         },
     },
     "SIDEBAR": {
@@ -138,7 +140,7 @@ UNFOLD = {
         "show_all_applications": False,
         "navigation": [
             {
-                "title": "Platform",
+                "title": "Users & Auth",
                 "separator": False,
                 "items": [
                     {
