@@ -36,9 +36,10 @@ class IdentityManager(models.Manager):
                     verified_at__isnull=False
                 ).exists()
                 if has_other_verified:
-                    user = User.objects.create_user(email=email)
-                    identity.user = user
-                    identity.save(update_fields=["user", "updated_at"])
+                    with transaction.atomic():
+                        user = User.objects.create_user(email=email)
+                        identity.user = user
+                        identity.save(update_fields=["user", "updated_at"])
 
             return identity, False
         except self.model.DoesNotExist:
@@ -75,9 +76,10 @@ class IdentityManager(models.Manager):
                     verified_at__isnull=False
                 ).exists()
                 if has_other_verified:
-                    user = User.objects.create_user()
-                    identity.user = user
-                    identity.save(update_fields=["user", "updated_at"])
+                    with transaction.atomic():
+                        user = User.objects.create_user()
+                        identity.user = user
+                        identity.save(update_fields=["user", "updated_at"])
 
             return identity, False
         except self.model.DoesNotExist:
@@ -109,13 +111,23 @@ class IdentityManager(models.Manager):
                 )
             return identity, False  # Already linked to this user
         except self.model.DoesNotExist:
-            identity = self.create(
-                user=user,
-                provider=provider,
-                identifier=identifier,
-                # verified_at intentionally left null until OTP is confirmed
-            )
-            return identity, True
+            try:
+                with transaction.atomic():
+                    identity = self.create(
+                        user=user,
+                        provider=provider,
+                        identifier=identifier,
+                        # verified_at intentionally left null until OTP is confirmed
+                    )
+                return identity, True
+            except IntegrityError:
+                # Concurrent request created the same identity — re-fetch and check ownership.
+                identity = self.get(provider=provider, identifier=identifier)
+                if identity.user_id != user.pk:
+                    raise ValueError(
+                        f"This {provider} identifier is already linked to another account."
+                    )
+                return identity, False
 
 
 class OTPRequestManager(models.Manager):
