@@ -11,6 +11,12 @@ class IdentityManager(models.Manager):
         """
         Find or create an Identity + User for the given email.
         Returns (identity, created).
+
+        Three cases handled:
+        1. Identity exists → return it.
+        2. No Identity, but User already exists (e.g. created via
+           createsuperuser or Django admin) → create Identity for them.
+        3. Neither exists → create both.
         """
         from django.contrib.auth import get_user_model
         User = get_user_model()
@@ -19,7 +25,11 @@ class IdentityManager(models.Manager):
             identity = self.get(provider="email", identifier=email)
             return identity, False
         except self.model.DoesNotExist:
-            user = User.objects.create_user(email=email)
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                user = User.objects.create_user(email=email)
+
             identity = self.create(
                 user=user,
                 provider="email",
