@@ -1,4 +1,5 @@
-from django.urls import path
+from django.urls import path, include
 
-# API v1 root — product and core routes registered here as they are built
-urlpatterns = []
+urlpatterns = [
+    path("auth/", include("core.identity.urls")),
+]

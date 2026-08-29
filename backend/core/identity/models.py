@@ -1,5 +1,8 @@
+import hashlib
+import secrets
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Identity(models.Model):
@@ -31,7 +34,6 @@ class Identity(models.Model):
 
     class Meta:
         db_table = "identities"
-        # One identifier per provider globally — prevents duplicate accounts
         unique_together = [("provider", "identifier")]
         ordering = ["-created_at"]
 
@@ -41,3 +43,55 @@ class Identity(models.Model):
     @property
     def is_verified(self):
         return self.verified_at is not None
+
+
+class OTPRequest(models.Model):
+    MAX_ATTEMPTS = 5
+    OTP_EXPIRY_MINUTES = 10
+    RESEND_COOLDOWN_SECONDS = 60
+
+    identity = models.ForeignKey(
+        Identity,
+        on_delete=models.CASCADE,
+        related_name="otp_requests",
+    )
+    # SHA-256 hash of the OTP — never stored in plaintext
+    otp_hash = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    attempts = models.IntegerField(default=0)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "otp_requests"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"OTP for {self.identity} at {self.created_at}"
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_verified(self):
+        return self.verified_at is not None
+
+    @property
+    def is_exhausted(self):
+        return self.attempts >= self.MAX_ATTEMPTS
+
+    @property
+    def is_usable(self):
+        return not self.is_expired and not self.is_verified and not self.is_exhausted
+
+    @staticmethod
+    def hash_otp(otp: str) -> str:
+        return hashlib.sha256(otp.encode()).hexdigest()
+
+    @staticmethod
+    def generate_otp() -> str:
+        return str(secrets.randbelow(1000000)).zfill(6)
+
+    def check_otp(self, otp: str) -> bool:
+        return self.otp_hash == self.hash_otp(otp)
