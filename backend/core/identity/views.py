@@ -35,8 +35,11 @@ def _issue_tokens(user) -> dict:
 
 def _verify_otp(identity, otp_value):
     """
-    Validate the OTP for an identity. Returns (success, error_response).
-    Increments attempt count on failure.
+    Validate the OTP for an identity. Returns (otp_request, None) on success
+    or (None, Response) on failure. Increments attempt count on wrong OTP.
+
+    get_latest_usable already excludes verified OTPs. is_usable additionally
+    guards against expiry and exhausted attempts before we touch the DB again.
     """
     otp_request = OTPRequest.objects.get_latest_usable(identity)
 

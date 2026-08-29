@@ -33,4 +33,4 @@ class User(AbstractBaseUser, PermissionsMixin):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return self.email
+        return self.email or str(self.id)

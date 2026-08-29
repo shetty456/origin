@@ -9,20 +9,36 @@ class IdentityManager(models.Manager):
 
     def get_or_create_for_email(self, email):
         """
-        Find or create an Identity + User for the given email.
-        Returns (identity, created).
+        Find or create an Identity + User for the given email. Returns (identity, created).
 
-        Three cases handled:
-        1. Identity exists → return it.
-        2. No Identity, but User already exists (e.g. created via
-           createsuperuser or Django admin) → create Identity for them.
-        3. Neither exists → create both.
+        Cases handled:
+        1. Verified Identity exists → return it (existing user, normal login).
+        2. Unverified Identity exists, owned by a user with no other verified
+           identities (abandoned signup) → reuse it, a new OTP will re-verify.
+        3. Unverified Identity exists, owned by a user with other verified
+           identities (abandoned link attempt) → reassign to a new User so a
+           new signup is never hijacked into another user's account.
+        4. No Identity, User exists with this email (e.g. createsuperuser) →
+           create Identity for them.
+        5. Nothing exists → create both User and Identity.
         """
         from django.contrib.auth import get_user_model
         User = get_user_model()
 
         try:
             identity = self.get(provider="email", identifier=email)
+
+            if not identity.is_verified:
+                # Check if this identity's user has other verified identities.
+                # If so, this was an abandoned link attempt — reassign to a new user.
+                has_other_verified = identity.user.identities.filter(
+                    verified_at__isnull=False
+                ).exists()
+                if has_other_verified:
+                    user = User.objects.create_user(email=email)
+                    identity.user = user
+                    identity.save(update_fields=["user"])
+
             return identity, False
         except self.model.DoesNotExist:
             try:
@@ -37,20 +53,29 @@ class IdentityManager(models.Manager):
             )
             return identity, True
 
-
     def get_or_create_for_phone(self, phone):
         """
-        Find or create an Identity + User for the given phone (E.164 format).
-        Returns (identity, created).
+        Find or create an Identity + User for the given phone (E.164). Returns (identity, created).
+        Applies the same abandoned-link-attempt guard as get_or_create_for_email.
         """
         from django.contrib.auth import get_user_model
         User = get_user_model()
 
         try:
             identity = self.get(provider="phone", identifier=phone)
+
+            if not identity.is_verified:
+                has_other_verified = identity.user.identities.filter(
+                    verified_at__isnull=False
+                ).exists()
+                if has_other_verified:
+                    user = User.objects.create_user()
+                    identity.user = user
+                    identity.save(update_fields=["user"])
+
             return identity, False
         except self.model.DoesNotExist:
-            user = User.objects.create_user()  # No email for phone-only users
+            user = User.objects.create_user()
             identity = self.create(
                 user=user,
                 provider="phone",
