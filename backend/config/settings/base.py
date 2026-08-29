@@ -27,8 +27,6 @@ LOCAL_APPS = [
     "core.identity",
     "core.users",
     "core.organizations",
-    "core.permissions",
-    "core.observability",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
