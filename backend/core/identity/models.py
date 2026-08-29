@@ -97,7 +97,7 @@ class OTPRequest(models.Model):
 
     @staticmethod
     def generate_otp() -> str:
-        return str(secrets.randbelow(1000000)).zfill(6)
+        return str(secrets.randbelow(10000)).zfill(4)
 
     def check_otp(self, otp: str) -> bool:
         return self.otp_hash == self.hash_otp(otp)
