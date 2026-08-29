@@ -1,4 +1,5 @@
 from pathlib import Path
+from django.templatetags.static import static
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -92,6 +93,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -109,6 +111,9 @@ REST_FRAMEWORK = {
 }
 
 UNFOLD = {
+    "STYLES": [
+        lambda request: static("css/origin-admin.css"),
+    ],
     "SITE_TITLE": "Origin",
     "SITE_HEADER": "Origin",
     "SITE_SUBHEADER": "Internal Product Platform",
