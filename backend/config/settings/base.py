@@ -24,8 +24,8 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    "core.identity",
     "core.users",
+    "core.identity",
     "core.organizations",
 ]
 
