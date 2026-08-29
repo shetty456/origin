@@ -4,6 +4,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from .managers import IdentityManager, OTPRequestManager
+
 
 class Identity(models.Model):
     PROVIDER_EMAIL = "email"
@@ -31,6 +33,8 @@ class Identity(models.Model):
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = IdentityManager()
 
     class Meta:
         db_table = "identities"
@@ -61,6 +65,8 @@ class OTPRequest(models.Model):
     attempts = models.IntegerField(default=0)
     verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OTPRequestManager()
 
     class Meta:
         db_table = "otp_requests"
