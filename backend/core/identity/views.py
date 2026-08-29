@@ -1,4 +1,5 @@
 import logging
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -7,14 +8,15 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
 
-from core.users.models import User
 from .models import Identity, OTPRequest
 from .serializers import OTPRequestSerializer, OTPVerifySerializer
 
 logger = logging.getLogger(__name__)
 
+User = get_user_model()
 
-def _issue_tokens(user: User) -> dict:
+
+def _issue_tokens(user) -> dict:
     refresh = RefreshToken.for_user(user)
     return {
         "access": str(refresh.access_token),

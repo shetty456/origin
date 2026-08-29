@@ -11,9 +11,9 @@ class IdentityManager(models.Manager):
         """
         Find or create an Identity + User for the given email.
         Returns (identity, created).
-        Lazy-imports User to avoid circular dependency.
         """
-        from core.users.models import User
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
 
         try:
             identity = self.get(provider="email", identifier=email)
