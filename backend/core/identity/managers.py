@@ -38,6 +38,27 @@ class IdentityManager(models.Manager):
             return identity, True
 
 
+    def get_or_create_for_phone(self, phone):
+        """
+        Find or create an Identity + User for the given phone (E.164 format).
+        Returns (identity, created).
+        """
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        try:
+            identity = self.get(provider="phone", identifier=phone)
+            return identity, False
+        except self.model.DoesNotExist:
+            user = User.objects.create_user()  # No email for phone-only users
+            identity = self.create(
+                user=user,
+                provider="phone",
+                identifier=phone,
+            )
+            return identity, True
+
+
 class OTPRequestManager(models.Manager):
     def get_latest_usable(self, identity):
         """Return the latest unverified OTP request for this identity, or None."""

@@ -9,7 +9,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
 
 from .models import Identity, OTPRequest
-from .serializers import OTPRequestSerializer, OTPVerifySerializer
+from .serializers import (
+    OTPRequestSerializer,
+    OTPVerifySerializer,
+    PhoneOTPRequestSerializer,
+    PhoneOTPVerifySerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +82,89 @@ class OTPVerifyView(APIView):
         except Identity.DoesNotExist:
             return Response(
                 {"detail": "Invalid email or OTP."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        otp_request = OTPRequest.objects.get_latest_usable(identity)
+
+        if not otp_request or not otp_request.is_usable:
+            return Response(
+                {"detail": "OTP has expired or is no longer valid. Please request a new one."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not otp_request.check_otp(otp):
+            otp_request.attempts += 1
+            otp_request.save(update_fields=["attempts"])
+            return Response(
+                {"detail": "Invalid OTP."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        now = timezone.now()
+        otp_request.verified_at = now
+        otp_request.save(update_fields=["verified_at"])
+
+        if not identity.verified_at:
+            identity.verified_at = now
+            identity.save(update_fields=["verified_at"])
+
+        return Response(_issue_tokens(identity.user), status=status.HTTP_200_OK)
+
+
+class PhoneOTPRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        request=PhoneOTPRequestSerializer,
+        responses={200: {"type": "object", "properties": {"detail": {"type": "string"}}}},
+        summary="Request Phone OTP",
+        description="Send a one-time password to the given phone number. Creates the user if they do not exist. Phone must include country code (e.g. +919876543210).",
+    )
+    def post(self, request):
+        serializer = PhoneOTPRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone = serializer.validated_data["phone"]  # Already E.164 from PhoneNumberField
+
+        identity, _ = Identity.objects.get_or_create_for_phone(phone)
+
+        if OTPRequest.objects.is_on_cooldown(identity):
+            return Response(
+                {"detail": "Please wait before requesting another OTP."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        _, otp = OTPRequest.objects.create_for(identity)
+
+        # TODO: replace with SMS provider (Twilio, AWS SNS, etc.)
+        logger.info("Phone OTP for %s: %s", phone, otp)
+
+        return Response({"detail": "OTP sent."}, status=status.HTTP_200_OK)
+
+
+class PhoneOTPVerifyView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        request=PhoneOTPVerifySerializer,
+        responses={200: {"type": "object", "properties": {
+            "access": {"type": "string"},
+            "refresh": {"type": "string"},
+        }}},
+        summary="Verify Phone OTP",
+        description="Verify the phone OTP and receive JWT access and refresh tokens.",
+    )
+    def post(self, request):
+        serializer = PhoneOTPVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone = serializer.validated_data["phone"]
+        otp = serializer.validated_data["otp"]
+
+        try:
+            identity = Identity.objects.get_by_provider(Identity.PROVIDER_PHONE, phone)
+        except Identity.DoesNotExist:
+            return Response(
+                {"detail": "Invalid phone number or OTP."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
