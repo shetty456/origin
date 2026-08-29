@@ -1,5 +1,4 @@
 from pathlib import Path
-from django.templatetags.static import static
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -11,9 +10,6 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=lambda v: [s.strip() for s in v.split(",")])
 
 DJANGO_APPS = [
-    "unfold",
-    "unfold.contrib.filters",
-    "unfold.contrib.forms",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -93,7 +89,6 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "static"]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -108,87 +103,6 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-}
-
-UNFOLD = {
-    "STYLES": [
-        lambda request: static("css/origin-admin.css"),
-    ],
-    "SITE_TITLE": "Origin",
-    "SITE_HEADER": "Origin",
-    "SITE_SUBHEADER": "Internal Product Platform",
-    "SITE_URL": "/",
-    "SITE_ICON": None,
-    "SITE_SYMBOL": "deployed_code",
-    "SHOW_HISTORY": True,
-    "SHOW_VIEW_ON_SITE": False,
-    "SHOW_BACK_BUTTON": True,
-    "THEME": "dark",
-    # Supabase emerald green palette
-    "COLORS": {
-        "primary": {
-            "50": "236 253 245",
-            "100": "209 250 229",
-            "200": "167 243 208",
-            "300": "110 231 183",
-            "400": "52 211 153",
-            "500": "16 185 129",
-            "600": "5 150 105",
-            "700": "4 120 87",
-            "800": "6 95 70",
-            "900": "6 78 59",
-            "950": "2 44 34",
-        },
-    },
-    "SIDEBAR": {
-        "show_search": True,
-        "show_all_applications": False,
-        "navigation": [
-            {
-                "title": "Users & Auth",
-                "separator": False,
-                "items": [
-                    {
-                        "title": "Users",
-                        "icon": "person",
-                        "link": "/admin/users/user/",
-                    },
-                    {
-                        "title": "Identities",
-                        "icon": "badge",
-                        "link": "/admin/identity/identity/",
-                    },
-                ],
-            },
-            {
-                "title": "Organizations",
-                "separator": False,
-                "items": [
-                    {
-                        "title": "Organizations",
-                        "icon": "corporate_fare",
-                        "link": "/admin/organizations/organization/",
-                    },
-                    {
-                        "title": "Memberships",
-                        "icon": "group",
-                        "link": "/admin/organizations/membership/",
-                    },
-                ],
-            },
-            {
-                "title": "System",
-                "separator": True,
-                "items": [
-                    {
-                        "title": "Groups",
-                        "icon": "shield_person",
-                        "link": "/admin/auth/group/",
-                    },
-                ],
-            },
-        ],
-    },
 }
 
 SPECTACULAR_SETTINGS = {
