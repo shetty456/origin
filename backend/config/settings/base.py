@@ -124,6 +124,20 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    "TAGS": [
+        {
+            "name": "Authentication",
+            "description": "Sign up and log in via email or phone OTP.",
+        },
+        {
+            "name": "Token",
+            "description": "JWT token management — refresh access tokens.",
+        },
+        {
+            "name": "Identity",
+            "description": "Link additional email or phone identities to an authenticated account.",
+        },
+    ],
 }
 
 CORS_ALLOWED_ORIGINS = config(

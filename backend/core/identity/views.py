@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from django.db.models import F
 from .models import Identity, OTPRequest
@@ -19,6 +19,8 @@ from .serializers import (
     LinkEmailVerifySerializer,
     LinkPhoneRequestSerializer,
     LinkPhoneVerifySerializer,
+    MessageSerializer,
+    TokenSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,11 +38,11 @@ def _issue_tokens(user) -> dict:
 
 def _verify_otp(identity, otp_value):
     """
-    Validate the OTP for an identity. Returns (otp_request, None) on success
-    or (None, Response) on failure. Increments attempt count on wrong OTP.
+    Validate and atomically consume the OTP for an identity.
+    Returns (otp_request, None) on success or (None, Response) on failure.
 
-    get_latest_usable already excludes verified OTPs. is_usable additionally
-    guards against expiry and exhausted attempts before we touch the DB again.
+    The verified_at is set here via a conditional atomic update so that two
+    concurrent requests with the correct OTP cannot both succeed (replay guard).
     """
     otp_request = OTPRequest.objects.get_latest_usable(identity)
 
@@ -59,6 +61,17 @@ def _verify_otp(identity, otp_value):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    now = timezone.now()
+    rows_updated = OTPRequest.objects.filter(
+        pk=otp_request.pk, verified_at__isnull=True
+    ).update(verified_at=now)
+    if not rows_updated:
+        # A concurrent request already consumed this OTP.
+        return None, Response(
+            {"detail": "OTP already used. Please request a new one."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    otp_request.verified_at = now
     return otp_request, None
 
 
@@ -70,8 +83,13 @@ class OTPRequestView(APIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
+        tags=["Authentication"],
         request=OTPRequestSerializer,
-        responses={200: {"type": "object", "properties": {"detail": {"type": "string"}}}},
+        responses={
+            200: MessageSerializer,
+            400: OpenApiResponse(description="Validation error."),
+            429: OpenApiResponse(description="OTP requested too recently — wait before retrying."),
+        },
         summary="Request Email OTP",
         description="Send a one-time password to the given email. Creates the user if they do not exist.",
     )
@@ -97,11 +115,12 @@ class OTPVerifyView(APIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
+        tags=["Authentication"],
         request=OTPVerifySerializer,
-        responses={200: {"type": "object", "properties": {
-            "access": {"type": "string"},
-            "refresh": {"type": "string"},
-        }}},
+        responses={
+            200: TokenSerializer,
+            400: OpenApiResponse(description="Invalid or expired OTP."),
+        },
         summary="Verify Email OTP",
         description="Verify the OTP and receive JWT access and refresh tokens.",
     )
@@ -123,12 +142,8 @@ class OTPVerifyView(APIView):
         if error:
             return error
 
-        now = timezone.now()
-        otp_request.verified_at = now
-        otp_request.save(update_fields=["verified_at"])
-
         if not identity.verified_at:
-            identity.verified_at = now
+            identity.verified_at = otp_request.verified_at
             identity.save(update_fields=["verified_at", "updated_at"])
 
         return Response(_issue_tokens(identity.user), status=status.HTTP_200_OK)
@@ -138,8 +153,13 @@ class PhoneOTPRequestView(APIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
+        tags=["Authentication"],
         request=PhoneOTPRequestSerializer,
-        responses={200: {"type": "object", "properties": {"detail": {"type": "string"}}}},
+        responses={
+            200: MessageSerializer,
+            400: OpenApiResponse(description="Validation error."),
+            429: OpenApiResponse(description="OTP requested too recently — wait before retrying."),
+        },
         summary="Request Phone OTP",
         description="Send a one-time password to the given phone number. Creates the user if they do not exist.",
     )
@@ -165,11 +185,12 @@ class PhoneOTPVerifyView(APIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
+        tags=["Authentication"],
         request=PhoneOTPVerifySerializer,
-        responses={200: {"type": "object", "properties": {
-            "access": {"type": "string"},
-            "refresh": {"type": "string"},
-        }}},
+        responses={
+            200: TokenSerializer,
+            400: OpenApiResponse(description="Invalid or expired OTP."),
+        },
         summary="Verify Phone OTP",
         description="Verify the phone OTP and receive JWT access and refresh tokens.",
     )
@@ -191,12 +212,8 @@ class PhoneOTPVerifyView(APIView):
         if error:
             return error
 
-        now = timezone.now()
-        otp_request.verified_at = now
-        otp_request.save(update_fields=["verified_at"])
-
         if not identity.verified_at:
-            identity.verified_at = now
+            identity.verified_at = otp_request.verified_at
             identity.save(update_fields=["verified_at", "updated_at"])
 
         return Response(_issue_tokens(identity.user), status=status.HTTP_200_OK)
@@ -250,10 +267,7 @@ def _link_verify(request, provider, identifier, otp_value):
     if error:
         return error
 
-    now = timezone.now()
-    otp_request.verified_at = now
-    otp_request.save(update_fields=["verified_at"])
-    identity.verified_at = now
+    identity.verified_at = otp_request.verified_at
     identity.save(update_fields=["verified_at", "updated_at"])
 
     return Response(
@@ -266,8 +280,15 @@ class LinkEmailRequestView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        tags=["Identity"],
         request=LinkEmailRequestSerializer,
-        responses={200: {"type": "object", "properties": {"detail": {"type": "string"}}}},
+        responses={
+            200: MessageSerializer,
+            400: OpenApiResponse(description="Validation error."),
+            401: OpenApiResponse(description="Authentication required."),
+            409: OpenApiResponse(description="Email already linked to an account."),
+            429: OpenApiResponse(description="OTP requested too recently — wait before retrying."),
+        },
         summary="Link email to account",
         description="Send an OTP to the given email to link it to the authenticated user's account.",
     )
@@ -282,8 +303,13 @@ class LinkEmailVerifyView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        tags=["Identity"],
         request=LinkEmailVerifySerializer,
-        responses={200: {"type": "object", "properties": {"detail": {"type": "string"}}}},
+        responses={
+            200: MessageSerializer,
+            400: OpenApiResponse(description="Invalid or expired OTP."),
+            401: OpenApiResponse(description="Authentication required."),
+        },
         summary="Verify email link OTP",
         description="Verify the OTP and link the email to the authenticated user's account.",
     )
@@ -299,8 +325,15 @@ class LinkPhoneRequestView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        tags=["Identity"],
         request=LinkPhoneRequestSerializer,
-        responses={200: {"type": "object", "properties": {"detail": {"type": "string"}}}},
+        responses={
+            200: MessageSerializer,
+            400: OpenApiResponse(description="Validation error."),
+            401: OpenApiResponse(description="Authentication required."),
+            409: OpenApiResponse(description="Phone already linked to an account."),
+            429: OpenApiResponse(description="OTP requested too recently — wait before retrying."),
+        },
         summary="Link phone to account",
         description="Send an OTP to the given phone to link it to the authenticated user's account.",
     )
@@ -315,8 +348,13 @@ class LinkPhoneVerifyView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        tags=["Identity"],
         request=LinkPhoneVerifySerializer,
-        responses={200: {"type": "object", "properties": {"detail": {"type": "string"}}}},
+        responses={
+            200: MessageSerializer,
+            400: OpenApiResponse(description="Invalid or expired OTP."),
+            401: OpenApiResponse(description="Authentication required."),
+        },
         summary="Verify phone link OTP",
         description="Verify the OTP and link the phone to the authenticated user's account.",
     )

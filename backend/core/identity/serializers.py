@@ -18,34 +18,50 @@ class PhoneNumberField(serializers.CharField):
         return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
 
 
-# Email OTP
+class OTPField(serializers.CharField):
+    """Exactly 6 digits — rejects non-numeric values at the serializer layer."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("min_length", 4)
+        kwargs.setdefault("max_length", 4)
+        super().__init__(**kwargs)
+
+    def to_internal_value(self, value):
+        value = super().to_internal_value(value)
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must be a 4-digit number.")
+        return value
+
+
+# ---------------------------------------------------------------------------
+# Request serializers
+# ---------------------------------------------------------------------------
+
 class OTPRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
 class OTPVerifySerializer(serializers.Serializer):
     email = serializers.EmailField()
-    otp = serializers.CharField(min_length=6, max_length=6)
+    otp = OTPField()
 
 
-# Phone OTP
 class PhoneOTPRequestSerializer(serializers.Serializer):
     phone = PhoneNumberField()
 
 
 class PhoneOTPVerifySerializer(serializers.Serializer):
     phone = PhoneNumberField()
-    otp = serializers.CharField(min_length=6, max_length=6)
+    otp = OTPField()
 
 
-# Identity linking (authenticated)
 class LinkEmailRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
 class LinkEmailVerifySerializer(serializers.Serializer):
     email = serializers.EmailField()
-    otp = serializers.CharField(min_length=6, max_length=6)
+    otp = OTPField()
 
 
 class LinkPhoneRequestSerializer(serializers.Serializer):
@@ -54,4 +70,17 @@ class LinkPhoneRequestSerializer(serializers.Serializer):
 
 class LinkPhoneVerifySerializer(serializers.Serializer):
     phone = PhoneNumberField()
-    otp = serializers.CharField(min_length=6, max_length=6)
+    otp = OTPField()
+
+
+# ---------------------------------------------------------------------------
+# Response serializers (used in extend_schema for Swagger documentation)
+# ---------------------------------------------------------------------------
+
+class MessageSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+
+
+class TokenSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
