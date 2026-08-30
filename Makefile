@@ -28,7 +28,7 @@ createsuperuser:
 	docker compose exec web python manage.py createsuperuser
 
 test:
-	docker compose exec web python manage.py test $(app)
+	docker compose exec web pytest $(path)
 
 psql:
 	docker compose exec db psql -U ${DB_USER:-origin} -d ${DB_NAME:-origin}
