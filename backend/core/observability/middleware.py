@@ -4,8 +4,9 @@ import uuid
 
 logger = logging.getLogger("origin.request")
 
-# URL segments that belong to the platform, not a product app.
-_CORE_SEGMENTS = {"auth", "token", "schema", "docs", "redoc"}
+# URL segments under /api/v{n}/ that belong to the platform, not a product app.
+# Extend this when new platform-level prefixes are added (e.g. "me" for user self-service).
+_CORE_SEGMENTS = {"auth", "me"}
 
 
 def _resolve_app(path: str) -> str:
@@ -51,14 +52,14 @@ class RequestLoggingMiddleware:
         except Exception:
             duration_ms = round((time.monotonic() - start) * 1000)
             logger.exception(
-                "Unhandled exception",
+                "request",
                 extra=self._fields(request, request_id, 500, duration_ms),
             )
             raise
 
         duration_ms = round((time.monotonic() - start) * 1000)
         logger.info(
-            "",
+            "request",
             extra=self._fields(request, request_id, response.status_code, duration_ms),
         )
         response["X-Request-Id"] = request_id
